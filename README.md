@@ -1,6 +1,6 @@
 # VM Detection in C
 
-I've been working on this project for a while, while working on other stuff, and decided to include it here for anybody interested. I am aware there could be issues or false positives depending on the setup — it's meant as a learning tool. Note that there are some parts written in Assembly (don't get scared, i was learning it on the way :D)
+I've been working on this project for a while, while working on other stuff, and decided to include it here for anybody interested. I am aware there could be issues or false positives depending on the setup — it's meant as a learning tool. Note that there are certain parts written in Assembly (don't get scared, i was learning it on the way :D)
 
 ## About
 
