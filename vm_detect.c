@@ -1,6 +1,7 @@
 #include "vm_detect.h"
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 
 #if defined(_WIN32) || defined(_WIN64)
     #define OS_WINDOWS
@@ -78,6 +79,79 @@ int is_vm_rdtsc() {
     return (t2 - t1 < 500);
 }
 
+#ifdef OS_WINDOWS
+int is_vm_rdtsc_vs_qpc() {
+    LARGE_INTEGER qpc1, qpc2;
+    unsigned int lo1, hi1, lo2, hi2;
+    unsigned long long t1, t2;
+
+    QueryPerformanceCounter(&qpc1);
+    __asm__ volatile ("rdtsc" : "=a"(lo1), "=d"(hi1));
+    Sleep(10);
+    QueryPerformanceCounter(&qpc2);
+    __asm__ volatile ("rdtsc" : "=a"(lo2), "=d"(hi2));
+
+    t1 = ((unsigned long long)hi1 << 32) | lo1;
+    t2 = ((unsigned long long)hi2 << 32) | lo2;
+
+    double qpc_diff = (double)(qpc2.QuadPart - qpc1.QuadPart);
+    unsigned long long rdtsc_diff = t2 - t1;
+    double ratio = rdtsc_diff / qpc_diff;
+
+    return (ratio < 500 || ratio > 5000);
+}
+#else
+int is_vm_rdtsc_vs_qpc() { return 0; }
+#endif
+
+int is_vm_cpuid_jitter() {
+    unsigned int lo1, hi1, lo2, hi2;
+    unsigned long long diffs[10];
+
+    for (int i = 0; i < 10; i++) {
+        __asm__ volatile ("rdtsc" : "=a"(lo1), "=d"(hi1));
+        __asm__ volatile ("cpuid" : : "a"(0));
+        __asm__ volatile ("rdtsc" : "=a"(lo2), "=d"(hi2));
+
+        diffs[i] = (((unsigned long long)hi2 << 32) | lo2) -
+                   (((unsigned long long)hi1 << 32) | lo1);
+    }
+
+    double mean = 0;
+    for (int i = 0; i < 10; i++) mean += diffs[i];
+    mean /= 10;
+
+    double dev = 0;
+    for (int i = 0; i < 10; i++) dev += (diffs[i] - mean) * (diffs[i] - mean);
+    dev = sqrt(dev / 10);
+
+    return dev < 50;
+}
+
+int is_vm_throttling() {
+    unsigned int lo1, hi1, lo2, hi2;
+    unsigned long long t1, t2;
+
+#ifdef OS_WINDOWS
+    Sleep(5);
+#else
+    usleep(5000);
+#endif
+
+    __asm__ volatile ("rdtsc" : "=a"(lo1), "=d"(hi1));
+#ifdef OS_WINDOWS
+    Sleep(5);
+#else
+    usleep(5000);
+#endif
+    __asm__ volatile ("rdtsc" : "=a"(lo2), "=d"(hi2));
+
+    t1 = ((unsigned long long)hi1 << 32) | lo1;
+    t2 = ((unsigned long long)hi2 << 32) | lo2;
+
+    return (t2 - t1 < 500000);
+}
+
 int is_vm_vmware_io() {
 #ifdef OS_WINDOWS
     return 0; // I/O port access blocked on user-mode Windows
@@ -153,11 +227,62 @@ int is_vm_mac() {
 #endif
 }
 
-int is_vm() {
-    int cpuid = is_vm_cpuid();
-    int vendor = is_vm_vendor();
+// red pill method
+int is_vm_sidt() {
+    unsigned char idt[6];
+    __asm__ volatile ("sidt %0" : "=m"(idt));
+    unsigned long base = *(unsigned long *)&idt[2];
 
-    // Allow Hyper-V on physical machine (this often triggers false positive)
+    return (base < 0xd0000000); // xd
+}
+
+int is_vm_sgdt() {
+    unsigned char gdt[6];
+    __asm__ volatile ("sgdt %0" : "=m"(gdt));
+    unsigned long base = *(unsigned long *)&gdt[2];
+
+    return (base < 0xd0000000);
+}
+
+// checks reserved bit
+int is_vm_smsw() {
+    unsigned long msw = 0;
+    __asm__ volatile (
+        "smsw %0"
+        : "=r"(msw)
+    );
+    return (msw >> 0x1f) != 0;
+}
+
+int is_vm() {
+    int score = 0;
+
+    int cpuid       = is_vm_cpuid();
+    int vendor      = is_vm_vendor();
+    int rdtsc       = is_vm_rdtsc();
+    int jitter      = is_vm_cpuid_jitter();
+    int rdtsc_qpc   = is_vm_rdtsc_vs_qpc();
+    int throttle    = is_vm_throttling();
+    int mac         = is_vm_mac();
+    int sidt        = is_vm_sidt();
+    int sgdt        = is_vm_sgdt();
+    int smsw        = is_vm_smsw();
+    int vmware_io   = is_vm_vmware_io();
+
+    // Balanced scoring system
+    score += cpuid      ? 1 : -1;
+    score += vendor     ? 1 : -1;
+    score += rdtsc      ? 1 : -1;
+    score += jitter     ? 1 : -1;
+    score += rdtsc_qpc  ? 1 : -1;
+    score += throttle   ? 1 : -1;
+    score += mac        ? 1 : -1;
+    score += sidt       ? 1 : -1;
+    score += sgdt       ? 1 : -1;
+    score += smsw       ? 1 : -1;
+    score += vmware_io  ? 1 : -1;
+
+    // allow Hyper-V on physical machine (this often triggers false positive)
     if (cpuid && vendor) {
         char vendor_buf[13];
         unsigned int eax = 0x40000000, ebx, ecx, edx;
@@ -173,10 +298,10 @@ int is_vm() {
         memcpy(&vendor_buf[8], &edx, 4);
         vendor_buf[12] = '\0';
 
-        if (strcmp(vendor_buf, "Microsoft Hv") == 0) {
+        if (strcmp(vendor_buf, "Microsoft Hv") == 0 && score <= 2) {
             return 0;
         }
     }
 
-    return cpuid || vendor || is_vm_rdtsc() || is_vm_vmware_io() || is_vm_mac();
+    return score >= 2;
 }
