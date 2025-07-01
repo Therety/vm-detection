@@ -15,3 +15,6 @@ It uses several checks, including:
 - RDTSC timing (VMs are often slower)
 - VMware I/O port trick (on Linux)
 - MAC address vendor prefixes
+
+## Updates
+I keep updating this repo for aslong i'll be intersted in this project.
