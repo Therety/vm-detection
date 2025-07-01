@@ -17,4 +17,4 @@ It uses several checks, including:
 - MAC address vendor prefixes
 
 ## Updates
-I'll keep updating this repo for aslong i'll be intersted in this project.
+I'll keep updating this repo for aslong i'll be interested in this project.
