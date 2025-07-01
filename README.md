@@ -4,7 +4,7 @@ I've been working on this project for a while, while working on other stuff, and
 
 ## About
 
-This is a small cross-platform (Windows, Linux - probably not on all distros) C project to detect if your program is running in a virtual machine (like VMware, VirtualBox, KVM, or Hyper-V).
+This is a small cross-platform (x86_64 architecture) C project to detect if your program is running in a virtual machine (like VMware, VirtualBox, KVM, or Hyper-V).
 
 ## How It Works
 
