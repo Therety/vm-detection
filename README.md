@@ -11,10 +11,15 @@ This is a small cross-platform (x86_64 architecture) C project to detect if your
 It uses several checks, including:
 
 - CPU feature flags (CPUID hypervisor bit)
-- Virtual machine vendor strings (like "KVMKVMKVM" or "VMwareVMware")
-- RDTSC timing (VMs are often slower)
+- Virtual machine vendor strings (like `KVMKVMKVM` or `VMwareVMware`)
+- Updated RDTSC timing
+- RDTSC :: QueryPerformanceCounter (Windows)
+- Throttling detection
+- Red pill technique*
 - VMware I/O port trick (on Linux)
 - MAC address vendor prefixes
+
+*IDRT contains address of IDT, by comparing both, program can determine if it's running on a VM or physical.
 
 ## Updates
 I'll keep updating this repo for aslong i'll be interested in this project.
