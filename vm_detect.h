@@ -17,5 +17,6 @@ int is_vm_cpuid_jitter();
 int is_vm_rdtsc_vs_qpc();
 int is_vm_throttling();
 int is_vm_clflush_timing();
+int is_vm_tsc();
 
 #endif
