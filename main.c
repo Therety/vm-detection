@@ -9,17 +9,8 @@ int main() {
     if (is_vm_cpuid()) {
         printf("[!] Hypervisor bit is SET\n");
     }
-    if (is_vm_vendor()) {
-        printf("[!] Hypervisor vendor string detected\n");
-    }
     if (is_vm_rdtsc()) {
         printf("[!] RDTSC timing too fast\n");
-    }
-    if (is_vm_vmware_io()) {
-        printf("[!] Port-based VM check triggered\n");
-    }
-    if (is_vm_mac()) {
-        printf("[!] Virtual MAC address prefix detected\n");
     }
     if (is_vm_sidt()) {
         printf("[!] IDT in lower memory range\n");
@@ -38,6 +29,9 @@ int main() {
     }
     if (is_vm_throttling()) {
         printf("[!] Slow rdtsc progression\n");
+    }
+    if (is_vm_clflush_timing()) {
+        printf("[!] Too fast cache flush\n");
     }
 
 
