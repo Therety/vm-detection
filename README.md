@@ -16,6 +16,7 @@ It uses several checks, including:
 - Throttling detection
 - Red pill technique*
 - Cache flush timing
+- CPUID TSC invariance
 - ...Working on more...
 
 *IDRT contains address of IDT, by comparing both, program can determine if it's running on a VM or physical.
