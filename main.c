@@ -33,6 +33,9 @@ int main() {
     if (is_vm_clflush_timing()) {
         printf("[!] Too fast cache flush\n");
     }
+    if (is_vm_tsc()) {
+        printf("[!] Non-invariant tsc\n");
+    }
 
 
     if (is_vm()) {
