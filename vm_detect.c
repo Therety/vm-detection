@@ -174,6 +174,17 @@ int is_vm_clflush_timing() {
     return (end - start < 100);
 }
 
+// invariance check
+int is_vm_tsc() {
+    unsigned int eax, edx;
+    __asm__ volatile (
+        "cpuid"
+        : "=a"(eax), "=d"(edx)
+        : "a"(0x80000007)
+    );
+    return !(edx & (1 << 8));
+}
+
 int is_vm() {
     int score = 0;
 
@@ -186,6 +197,7 @@ int is_vm() {
     int sgdt        = is_vm_sgdt();
     int smsw        = is_vm_smsw();
     int clflush     = is_vm_clflush_timing();
+    int tsc         = is_vm_tsc();
 
     // Balanced scoring system
     score += cpuid      ? 1 : -1;
@@ -197,6 +209,7 @@ int is_vm() {
     score += sgdt       ? 1 : -1;
     score += smsw       ? 1 : -1;
     score += clflush    ? 1 : -1;
+    score += tsc        ? 1 : -1;
 
     return score >= 2;
 }
