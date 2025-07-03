@@ -22,4 +22,4 @@ It uses several checks, including:
 *IDRT contains address of IDT, by comparing both, program can determine if it's running on a VM or physical.
 
 ## Updates
-I'll keep updating this repo for aslong i'll be interested in this project.
+I'll keep updating this repo for aslong i'll be interested in this project. Mostly, i'll be fixing my mistakes made in the past, with some additional changes to make it way better than it originaly was.
