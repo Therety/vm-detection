@@ -4,7 +4,7 @@ I've been working on this project for a while, while working on other stuff, and
 
 ## About
 
-This is a small cross-platform (x86_64 architecture) C project to detect if your program is running in a virtual environment (like VMware, VirtualBox, KVM, Hyper-V or ANY.run). 
+This is a small cross-platform (x86_64 architecture) C project to detect if your program is running in a virtual environment such as VMware, VirtualBox, KVM, Hyper-V or sandbox services like ANY.run.
 
 ## How It Works
 
