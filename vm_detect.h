@@ -1,3 +1,7 @@
+#if !defined(__x86_64__) && !defined(_M_X64)
+#error "This script only supports x86_64 arch."
+#endif
+
 #ifndef VM_DETECT_H
 #define VM_DETECT_H
 
