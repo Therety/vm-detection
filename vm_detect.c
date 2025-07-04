@@ -170,13 +170,18 @@ int is_vm_throttling() {
     return (t2 - t1 < 500000);
 }
 
-// red pill method
+// red pill method (updated entropy for sidt)
 int is_vm_sidt() {
-    unsigned char idt[6];
-    __asm__ volatile ("sidt %0" : "=m"(idt));
-    unsigned long base = *(unsigned long *)&idt[2];
+    unsigned long prev = 0, j = 0;
+    for (int i = 0; i < 10; i++) {
+        unsigned char idt[6];
+        __asm__ volatile ("sidt %0" : "=m"(idt));
+        unsigned long base = *(unsigned long *)&idt[2];
 
-    return (base < 0xd0000000); // xd
+        if (base == prev) j++;
+        prev = base;
+    }
+    return (j == 10);
 }
 
 int is_vm_sgdt() {
@@ -184,17 +189,7 @@ int is_vm_sgdt() {
     __asm__ volatile ("sgdt %0" : "=m"(gdt));
     unsigned long base = *(unsigned long *)&gdt[2];
 
-    return (base < 0xd0000000);
-}
-
-// checks reserved bit
-int is_vm_smsw() {
-    unsigned long msw = 0;
-    __asm__ volatile (
-        "smsw %0"
-        : "=r"(msw)
-    );
-    return (msw >> 0x1f) != 0;
+    return (base < 0x40000000);
 }
 
 int is_vm_clflush_timing() {
@@ -240,21 +235,20 @@ int is_vm() {
     int throttle    = is_vm_throttling();
     int sidt        = is_vm_sidt();
     int sgdt        = is_vm_sgdt();
-    int smsw        = is_vm_smsw();
     int clflush     = is_vm_clflush_timing();
     int tsc         = is_vm_tsc();
 
-    // Balanced scoring system
-    score += cpuid      ? 1 : -1;
-    score += rdtsc      ? 1 : -1;
-    score += jitter     ? 1 : -1;
-    score += rdtsc_qpc  ? 1 : -1;
-    score += throttle   ? 1 : -1;
-    score += sidt       ? 1 : -1;
-    score += sgdt       ? 1 : -1;
-    score += smsw       ? 1 : -1;
-    score += clflush    ? 1 : -1;
-    score += tsc        ? 1 : -1;
+    // no negatives for lower-confidence checks,
+    // +2 for high confidence checks (more reliable for hardened virt env)
+    score += cpuid      ? 1 :  0;
+    score += rdtsc      ? 1 :  0;
+    score += jitter     ? 1 :  0;
+    score += rdtsc_qpc  ? 2 : -1;
+    score += throttle   ? 1 :  0;
+    score += sidt       ? 1 :  0;
+    score += sgdt       ? 1 :  0;
+    score += clflush    ? 1 :  0;
+    score += tsc        ? 2 : -1;
 
     return score >= 2;
 }
