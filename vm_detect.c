@@ -1,3 +1,12 @@
+/*
+
+      VM DETECTION IN C
+    --------------------
+      MADE BY: Therety
+      LICENSE: GPL 3.0
+
+*/
+
 #include "vm_detect.h"
 #include <stdio.h>
 #include <string.h>
@@ -14,6 +23,7 @@
     #include <dirent.h>
     #include <fcntl.h>
     #include <unistd.h>
+    #include <time.h>
 #endif
 
 const char* detect_os() {
@@ -52,30 +62,65 @@ int is_vm_rdtsc() {
     return (t2 - t1 < 500);
 }
 
+// windows and linux compatibility
 #ifdef OS_WINDOWS
+    double qpc_now() {
+        LARGE_INTEGER freq, counter;
+        QueryPerformanceFrequency(&freq);
+        QueryPerformanceCounter(&counter);
+        return (double)counter.QuadPart * 1000.0 / freq.QuadPart;
+    }
+
+    void sleep_ms(int ms) {
+        Sleep(ms);
+    }
+#else
+    double qpc_now() {
+        struct timespec ts;
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        return ts.tv_sec * 1000.0 + ts.tv_nsec / 1e9;
+    }
+
+    void sleep_ms(int ms) {
+        usleep(ms * 1000);
+    }
+#endif
+
+// Updated mean/stddev thresholds: less false positives, more accurate
 int is_vm_rdtsc_vs_qpc() {
-    LARGE_INTEGER qpc1, qpc2;
+    const int samples = 10;
+    double ratios[samples];
     unsigned int lo1, hi1, lo2, hi2;
     unsigned long long t1, t2;
 
-    QueryPerformanceCounter(&qpc1);
-    __asm__ volatile ("rdtsc" : "=a"(lo1), "=d"(hi1));
-    Sleep(10);
-    QueryPerformanceCounter(&qpc2);
-    __asm__ volatile ("rdtsc" : "=a"(lo2), "=d"(hi2));
+    for (int i = 0; i < samples; i++) {
+        double qpc1 = qpc_now();
+        __asm__ volatile ("rdtsc" : "=a"(lo1), "=d"(hi1));
+        sleep_ms(10);
+        double qpc2 = qpc_now();
+        __asm__ volatile ("rdtsc" : "=a"(lo2), "=d"(hi2));
 
-    t1 = ((unsigned long long)hi1 << 32) | lo1;
-    t2 = ((unsigned long long)hi2 << 32) | lo2;
+        t1 = ((unsigned long long)hi1 << 32) | lo1;
+        t2 = ((unsigned long long)hi2 << 32) | lo2;
 
-    double qpc_diff = (double)(qpc2.QuadPart - qpc1.QuadPart);
-    unsigned long long rdtsc_diff = t2 - t1;
-    double ratio = rdtsc_diff / qpc_diff;
+        double qpc_diff = qpc2 - qpc1;
+        double rdtsc_diff = (double)(t2 - t1);
+        ratios[i] = rdtsc_diff / qpc_diff;
+    }
 
-    return (ratio < 500 || ratio > 5000);
+    double sum = 0;
+    for (int i = 0; i < samples; i++) sum += ratios[i];
+    double mean = sum / samples;
+
+    double dev_sum = 0;
+    for (int i = 0; i < samples; i++) dev_sum += (ratios[i] - mean) * (ratios[i] - mean);
+    double stddev = sqrt(dev_sum / samples);
+
+    //printf("mean=%.2f stddev=%.2f\n", mean, stddev);
+
+    if (stddev > 5000.0 || mean < 100000.0 || mean > 5000000.0) return 1;
+    return 0;
 }
-#else
-int is_vm_rdtsc_vs_qpc() { return 0; }
-#endif
 
 int is_vm_cpuid_jitter() {
     unsigned int lo1, hi1, lo2, hi2;
