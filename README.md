@@ -12,7 +12,7 @@ It uses several checks, including:
 
 - CPU feature flags (CPUID hypervisor bit)
 - Updated RDTSC timing
-- RDTSC :: QueryPerformanceCounter (Windows)
+- RDTSC :: `QueryPerformanceCounter()`/`clock_gettime()`
 - Throttling detection
 - Red pill technique*
 - Cache flush timing
