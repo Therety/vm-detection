@@ -8,7 +8,8 @@ This is a small cross-platform (x86_64 architecture) C project to detect if your
 
 ## How It Works
 
-It uses several checks, including:
+First, before running any detection checks, the program introduces a randomized delay to allow the execution environment (such as a sandbox or virtual machine) to fully initialize (this helps avoid inaccurate results caused by early execution). 
+Then, the program performs several VM detection checks, including:
 
 - CPU feature flags (CPUID hypervisor bit)
 - Updated RDTSC timing
