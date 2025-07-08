@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <time.h>
 
 #if defined(_WIN32) || defined(_WIN64)
     #define OS_WINDOWS
@@ -23,8 +24,38 @@
     #include <dirent.h>
     #include <fcntl.h>
     #include <unistd.h>
-    #include <time.h>
 #endif
+
+// windows and linux compatibility
+#ifdef OS_WINDOWS
+    double qpc_now() {
+        LARGE_INTEGER freq, counter;
+        QueryPerformanceFrequency(&freq);
+        QueryPerformanceCounter(&counter);
+        return (double)counter.QuadPart * 1000.0 / freq.QuadPart;
+    }
+
+    void sleep_ms(int ms) {
+        Sleep(ms);
+    }
+#else
+    double qpc_now() {
+        struct timespec ts;
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        return ts.tv_sec * 1000.0 + ts.tv_nsec / 1e9;
+    }
+
+    void sleep_ms(int ms) {
+        usleep(ms * 1000);
+    }
+#endif
+
+void randomized_delay() {
+    srand((unsigned int)time(NULL));
+    int delay_ms = 3000 + rand() % 2000;
+    printf("[?] Delaying startup by %d ms...\n", delay_ms);
+    sleep_ms(delay_ms);
+}
 
 const char* detect_os() {
 #ifdef OS_WINDOWS
@@ -62,30 +93,6 @@ int is_vm_rdtsc() {
     return (t2 - t1 < 500);
 }
 
-// windows and linux compatibility
-#ifdef OS_WINDOWS
-    double qpc_now() {
-        LARGE_INTEGER freq, counter;
-        QueryPerformanceFrequency(&freq);
-        QueryPerformanceCounter(&counter);
-        return (double)counter.QuadPart * 1000.0 / freq.QuadPart;
-    }
-
-    void sleep_ms(int ms) {
-        Sleep(ms);
-    }
-#else
-    double qpc_now() {
-        struct timespec ts;
-        clock_gettime(CLOCK_MONOTONIC, &ts);
-        return ts.tv_sec * 1000.0 + ts.tv_nsec / 1e9;
-    }
-
-    void sleep_ms(int ms) {
-        usleep(ms * 1000);
-    }
-#endif
-
 // Updated mean/stddev thresholds: less false positives, more accurate
 int is_vm_rdtsc_vs_qpc() {
     const int samples = 10;
@@ -118,7 +125,8 @@ int is_vm_rdtsc_vs_qpc() {
 
     //printf("mean=%.2f stddev=%.2f\n", mean, stddev);
 
-    if (stddev > 5000.0 || mean < 100000.0 || mean > 5000000.0) return 1;
+    if (mean < 200000.0 || mean > 3000000.0) return 1;
+    if (stddev > 2000.0) return 1;
     return 0;
 }
 
@@ -143,7 +151,8 @@ int is_vm_cpuid_jitter() {
     for (int i = 0; i < 10; i++) dev += (diffs[i] - mean) * (diffs[i] - mean);
     dev = sqrt(dev / 10);
 
-    return dev < 50;
+    return dev < 30;
+    //if (dev < 30 && mean < 1000) return 1;
 }
 
 int is_vm_throttling() {
@@ -172,16 +181,19 @@ int is_vm_throttling() {
 
 // red pill method (updated entropy for sidt)
 int is_vm_sidt() {
-    unsigned long prev = 0, j = 0;
+    unsigned long bases[10];
+    int identical = 1;
+
     for (int i = 0; i < 10; i++) {
         unsigned char idt[6];
         __asm__ volatile ("sidt %0" : "=m"(idt));
-        unsigned long base = *(unsigned long *)&idt[2];
+        bases[i] = *(unsigned long *)&idt[2];
 
-        if (base == prev) j++;
-        prev = base;
+        if (i > 0 && bases[i] != bases[i - 1])
+            identical = 0;
     }
-    return (j == 10);
+
+    return identical;
 }
 
 int is_vm_sgdt() {
@@ -249,6 +261,10 @@ int is_vm() {
     score += sgdt       ? 1 :  0;
     score += clflush    ? 1 :  0;
     score += tsc        ? 2 : -1;
+
+    // debug
+    //printf("Scores: cpuid=%d, rdtsc=%d, jitter=%d, rdtsc_qpc=%d, throttle=%d, sidt=%d, sgdt=%d, clflush=%d, tsc=%d\n", cpuid, rdtsc, jitter, rdtsc_qpc, throttle, sidt, sgdt, clflush, tsc);
+    //printf("Final score: %d\n", score);
 
     return score >= 2;
 }
