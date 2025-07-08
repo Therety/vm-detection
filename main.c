@@ -2,6 +2,7 @@
 #include "vm_detect.h"
 
 int main() {
+    randomized_delay(); // this can be moved to vm_detect.c when you only need is_vm()
     const char* os = detect_os();
     printf("Detected OS: %s\n", os);
 
