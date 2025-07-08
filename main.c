@@ -18,9 +18,6 @@ int main() {
     if (is_vm_sgdt()) {
         printf("[!] GDT in lower memory range\n");
     }
-    if (is_vm_smsw()) {
-        printf("[!] MSW odd value\n");
-    }
     if (is_vm_cpuid_jitter()) {
         printf("[!] Lower CPU jitter\n");
     }
