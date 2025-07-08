@@ -5,6 +5,8 @@
 #ifndef VM_DETECT_H
 #define VM_DETECT_H
 
+void randomized_delay();
+
 // Cross-platform OS detection
 const char* detect_os();
 
