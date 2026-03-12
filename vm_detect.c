@@ -52,7 +52,7 @@
 
 void randomized_delay() {
     srand((unsigned int)time(NULL));
-    int delay_ms = 3000 + rand() % 2000;
+    int delay_ms = 3000 + rand() % 4001;
     printf("[?] Delaying startup by %d ms...\n", delay_ms);
     sleep_ms(delay_ms);
 }
@@ -268,3 +268,4 @@ int is_vm() {
 
     return score >= 2;
 }
+
